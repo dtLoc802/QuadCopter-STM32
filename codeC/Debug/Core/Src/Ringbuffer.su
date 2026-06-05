@@ -1,0 +1,6 @@
+../Core/Src/Ringbuffer.c:12:6:HAL_UART_RxCpltCallback	24	static
+../Core/Src/Ringbuffer.c:35:6:HAL_UART_TxCpltCallback	24	static
+../Core/Src/Ringbuffer.c:48:6:RINGBUF_INIT	16	static
+../Core/Src/Ringbuffer.c:62:6:UART_WRITE	24	static
+../Core/Src/Ringbuffer.c:79:5:UART_READ	24	static
+../Core/Src/Ringbuffer.c:87:5:AVAILABLEDATA	16	static

@@ -1,0 +1,12 @@
+../Core/Src/Filters.c:11:6:LowpassFilterInit	24	static
+../Core/Src/Filters.c:19:7:LowpassFilterProcess	16	static
+../Core/Src/Filters.c:25:7:LowpassFilterKd	24	static
+../Core/Src/Filters.c:37:6:BiquadFilterNotchInit	24	static
+../Core/Src/Filters.c:42:6:CalculateNotchQ	24	static
+../Core/Src/Filters.c:48:6:BiquadFilterInit	48	static
+../Core/Src/Filters.c:84:7:BiquadFilterProcessTDF2	16	static
+../Core/Src/Filters.c:113:18:divSqrt	32	static
+../Core/Src/Filters.c:119:6:MadgwickFilter_Update	144	static
+../Core/Src/Filters.c:234:6:MadgwickFilter	112	static
+../Core/Src/Filters.c:326:6:ComplementaryHeightProcess	48	static
+../Core/Src/Filters.c:354:6:KalmanFilterProcess	56	static

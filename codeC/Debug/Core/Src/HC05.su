@@ -1,0 +1,2 @@
+../Core/Src/HC05.c:18:13:HC05_Send	16	static
+../Core/Src/HC05.c:25:6:HC05_PID_SETTINGS	1000	static
