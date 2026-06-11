@@ -58,7 +58,8 @@ Core/Src/PIDControl.o: ../Core/Src/PIDControl.c ../Core/Inc/PIDControl.h \
  ../Drivers/CMSIS/Include/dsp/filtering_functions.h \
  ../Drivers/CMSIS/Include/dsp/support_functions.h \
  ../Drivers/CMSIS/Include/dsp/quaternion_math_functions.h \
- ../Core/Inc/ICM20948_I2C.h ../Core/Inc/MS5611_SPI.h ../Core/Inc/main.h
+ ../Core/Inc/ICM20948_I2C.h ../Core/Inc/MS5611_SPI.h ../Core/Inc/main.h \
+ ../Core/Inc/MTF01P.h
 ../Core/Inc/PIDControl.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -124,3 +125,4 @@ Core/Src/PIDControl.o: ../Core/Src/PIDControl.c ../Core/Inc/PIDControl.h \
 ../Core/Inc/ICM20948_I2C.h:
 ../Core/Inc/MS5611_SPI.h:
 ../Core/Inc/main.h:
+../Core/Inc/MTF01P.h:

@@ -5,7 +5,8 @@
  *      Author: Windows
  */
 #include "MTF01P.h"
-
+MICOLINK_PAYLOAD_RANGE_SENSOR_t payload;
+uint8_t MTF01P_flag = 0;
 /*
 Users can use microlink_decode as their serial port data processing function
 The minimum effective distance value is 10 (mm), and 0 indicates that the distance value is not available
@@ -26,9 +27,8 @@ void micolink_decode(uint8_t data)
     {
         case MICOLINK_MSG_ID_RANGE_SENSOR:
         {
-            MICOLINK_PAYLOAD_RANGE_SENSOR_t payload;
             memcpy(&payload, msg.payload, msg.len);
-
+            MTF01P_flag = 1;
             /*
                 You can get the sensor data here:
 

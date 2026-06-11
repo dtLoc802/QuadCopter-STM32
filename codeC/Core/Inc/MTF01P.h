@@ -60,6 +60,8 @@ typedef struct
     uint8_t   flow_status;	    // optical flow status
     uint16_t  reserved2;	    // reserved
 } MICOLINK_PAYLOAD_RANGE_SENSOR_t;
+extern MICOLINK_PAYLOAD_RANGE_SENSOR_t payload;
+extern uint8_t MTF01P_flag;
 #pragma pack ()
 void micolink_decode(uint8_t data);
 #endif /* INC_MTF01P_H_ */

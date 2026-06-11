@@ -69,7 +69,7 @@ enum XYZ
 //- Variables for pitch, roll, yaw
 ICM20948_ACCEL_DATA acc;
 ICM20948_GYRO_DATA gyro;
-AK09916_DATA mag={ 0 };
+AK09916_DATA mag = { 0 };
 ICM20948_FILTER imu;
 uint8_t ICM20948_status = 0;
 LowPassFilter gyro_LPF[3];
@@ -131,11 +131,12 @@ ComplementaryFilterH CFH = {
 		.dt = 0.018
 };
 KalmanFilter KF = {
-		.Q_heightSe = 0.001,
+		.Q_positionSe = 0.001,
 		.Q_velocitySe = 0.0001,
-		.R = 0.06,
+		.Rbar = 0.06,
+		.RoptP = 0.00003,
+		.RoptV = 0.000005
 };
-MICOLINK_PAYLOAD_RANGE_SENSOR_t payload;
 uint8_t temp_TMF01P;
 uint32_t MFcount = 0;
 uint32_t KFcount = 0;
@@ -152,7 +153,7 @@ uint16_t PWM1, PWM2, PWM3, PWM4;
 uint8_t SetYaw_flag = 0;
 float yaw_reference;
 float thrust_value;
-float x;
+
 uint8_t TurnOnHeight= 0;
 // -PID various
 uint32_t current_time_pid_pos;
@@ -234,17 +235,26 @@ PIDsingle YawAngle = {
 		.par.kd = 0.0,
 };
 PIDsingle Height = {
-		.par.kp = 1.1,
+		.par.kp = 2.5,
 		.par.ki = 0.0,
 		.par.kd = 0.0,
 };
 PIDsingle VelH = {
-		.par.kp = 35.0,
-		.par.ki = 3.0,
-		.par.kd = 1.0,
+		.par.kp = 40.0,
+		.par.ki = 0.5,
+		.par.kd = 2.0,
 };
 PIDsingle Position;
-PIDsingle Velocity;
+PIDsingle Velocitydx = {
+		.par.kp = 0,
+		.par.ki = 0,
+		.par.kd = 2.0,
+};
+PIDsingle Velocitydy = {
+		.par.kp = 0,
+		.par.ki = 0,
+		.par.kd = 2.0,
+};
 uint8_t missout = 0;
 //-
 char last;
@@ -259,6 +269,7 @@ void MS5611_BAR_init(void);
 void PID_init(void);
 void HC05_PROCESS(void);
 void MTF01P_PROCESS(void);
+void MTF01P_s(void);
 void ICM20948_IMU(void);
 void ICM20948_s(void);
 void MS5611_BAR(void);
@@ -357,6 +368,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  HC05_PROCESS();
 	  MTF01P_PROCESS();
+	  //MTF01P_s();
 	  //ak09916_calibrate(&hi2c1, &mag);
 //- Receive and calculate data from MS5611 barometric pressure sensor
 	  MS5611_BAR();
@@ -451,13 +463,13 @@ void ICM20948_IMU_init(void)
 	if (ICM20948_I2C_Init(&hi2c1) == HAL_OK)
 	{
 		ICM20948_calirate_accel_gyro(&hi2c1, &gyro, &acc);
-		mag.xOffset = -113.5;
-		mag.yOffset = 200;
-		mag.zOffset = 56.5;
+		mag.xOffset = 73;
+		mag.yOffset = 205;
+		mag.zOffset = 116.5;
 
-		mag.xScale = 0.00385356462;
+		mag.xScale = 0.00388349523;
 		mag.yScale = 0.00392156886;
-		mag.zScale = 0.017699115;
+		mag.zScale = 0.00858369097;
 		ICM20948_status = 1;
 	}
 	if ((MS5611_status == 1)&&(ICM20948_status == 1)) HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
@@ -482,7 +494,6 @@ void Filter_init(void)
 		LowpassFilterInit(&gyro_LPF[i], 100, 0.0008878);
 		LowpassFilterInit(&acc_LPF[i], 100, 0.0008878);
 		LowpassFilterInit(&mag_LPF, 10, 0.0008878);
-		BiquadFilterNotchInit(&mag_NOTCH, 150, 50, 887.8);
 	}
 }
 void PID_init(void)
@@ -496,7 +507,8 @@ void PID_init(void)
 	PID_Init(&Height);
 	PID_Init(&VelH);
 	PID_Init(&Position);
-	PID_Init(&Velocity);
+	PID_Init(&Velocitydx);
+	PID_Init(&Velocitydy);
 }
 void HC05_PROCESS(void)
 {
@@ -568,7 +580,7 @@ void ICM20948_IMU(void)
 		ICM20948_Start = TIM2->CNT;
 		if (ICM20948_Count - ICM20948_PreCount < 1000)
 		{
-			HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+			HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,  GPIO_PIN_RESET);
 		}
 		ICM20948_PreCount = ICM20948_Count;
 	}
@@ -578,6 +590,7 @@ void ICM20948_IMU(void)
 		//dma_done = 0;
 		ICM20948_READ_ACCEL_GYRO_MAG_DMA(&hi2c1, &acc, &gyro, &mag);
 		temp_yaw = atan2(-mag.MAG_DATA[1], mag.MAG_DATA[0])*57.29577951;
+//		ak09916_calibrate(&hi2c1, &mag);
 //		if (temp_yaw < 0) temp_yaw += 360;
 	}
 	if (data_ready)
@@ -598,11 +611,11 @@ void ICM20948_IMU(void)
 		//MadgwickFilter(&MF, &imu, dt_ICM20948);
 		if(MFcount > 9000 && SetYaw_flag == 2)
 				{
-					KalmanFilterProcess(&KF, &imu, &MS5611, dt_ICM20948, MS5611_flag);
+					KalmanFilterProcess(&KF, &imu, &MS5611, &payload, dt_ICM20948, MS5611_flag, MTF01P_flag);
 					MS5611_flag = 0;
 					if (KFcount <= 4500 && (KFcount % 125 == 0))
 						HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-					else if (KFcount > 4500 && abs(KF.velocity) < 0.1 && abs(KF.height) < 0.1)
+					else if (KFcount > 4500 && abs(KF.velocity[2]) < 0.1 && abs(KF.position[2]) < 0.1)
 						ENABLE_FLY = 1;
 				}
 		else if (MFcount <= 9000 && (MFcount % 72 == 0))
@@ -671,7 +684,7 @@ void MS5611_BAR(void)
 				MS5611.Ground = MS5611.Height;
 			if (ENABLE_FLY == 0 && MS5611.Ground != 0)
 			    MS5611.Ground = MS5611.Height;
-			else if (ENABLE_FLY == 1 && fabsf(KF.velocity) > 0.1f && fabsf(MS5611.Distance) > 0.1f && CHANNEL[THRUST] == 1000)
+			else if (ENABLE_FLY == 1 && fabsf(KF.velocity[2]) < 0.1f && fabsf(MS5611.Distance) > 0.1f && CHANNEL[THRUST] == 1000)
 			    MS5611.Ground = MS5611.Ground * 0.9f + MS5611.Height * 0.1f;
 			MS5611.Distance = MS5611.Height - MS5611.Ground;
 			MS5611_flag = 1;
@@ -728,7 +741,7 @@ void PID_CONTROLLER(void)
 		}
 	}
 	// ANGLE PID
-	else if (Height.par.kp == 0 && Position.par.kp == 0)
+	else if (Height.par.kp == 0 && Velocitydx.par.kp == 0 && Velocitydy.par.kp == 0)
 	{
 		if (CHANNEL[THRUST] == 1000)
 		{
@@ -754,7 +767,8 @@ void PID_CONTROLLER(void)
 		if (CHANNEL[THRUST] == 1000)
 		{
 			PID_Reset(&Position);
-			PID_Reset(&Velocity);
+			PID_Reset(&Velocitydx);
+			PID_Reset(&Velocitydy);
 			PID_Reset(&YawAngle);
 			PID_Reset(&PitchAngle);
 			PID_Reset(&RollAngle);
@@ -763,7 +777,6 @@ void PID_CONTROLLER(void)
 			PID_Reset(&RollRate);
 			PID_Reset(&Height);
 			PID_Reset(&VelH);
-			height_setpoint = KF.height;
 			current_time_pid_pos	   = TIM2->CNT;
 			previous_time_pid_pos	   = TIM2->CNT;
 			current_time_pid_vel	   = TIM2->CNT;
@@ -787,7 +800,7 @@ void PID_CONTROLLER(void)
 			}
 			else
 			{
-				PID_POSITION_PROCESS();
+				//PID_POSITION_PROCESS();
 				PID_VELOCITY_PROCESS();
 				PID_YAW_PROCESS();
 				PID_ANGLE_PROCESS();
@@ -807,8 +820,9 @@ void PID_POSITION_PROCESS(void)
 		current_time_pid_pos = TIM2->CNT;
 		dt_pid_pos = (current_time_pid_pos - previous_time_pid_pos)*0.000001;
 		f_pid_pos = 1/dt_pid_pos;
-		PID_velocity_setpoint[PITCH] = PID_Caculate(&Position, (CHANNEL[PITCH]-1500)*0.1, 0, dt_pid_pos, -50, 50, 0);
-		PID_velocity_setpoint[ROLL] = PID_Caculate(&Position, (CHANNEL[ROLL]-1500)*0.1, 0, dt_pid_pos, -50, 50, 0);
+		//PID_velocity_setpoint[PITCH] = PID_Caculate(&Position, (CHANNEL[PITCH]-1500)*0.1, 0, dt_pid_pos, -50, 50, 0);
+		//PID_velocity_setpoint[ROLL] = PID_Caculate(&Position, (CHANNEL[ROLL]-1500)*0.1, 0, dt_pid_pos, -50, 50, 0);
+
 	}
 }
 void PID_VELOCITY_PROCESS(void)
@@ -819,8 +833,8 @@ void PID_VELOCITY_PROCESS(void)
 		current_time_pid_vel = TIM2->CNT;
 		dt_pid_vel = (current_time_pid_vel - previous_time_pid_vel)*0.000001;
 		f_pid_vel = 1/dt_pid_vel;
-		PID_angle_setpoint[PITCH] = PID_Caculate(&Velocity, PID_velocity_setpoint[PITCH], payload.flow_vel_x, dt_pid_vel, -100, 100, 0);
-		PID_angle_setpoint[ROLL] = PID_Caculate(&Velocity, PID_velocity_setpoint[ROLL], payload.flow_vel_y, dt_pid_vel, -100, 100, 0);
+		PID_angle_setpoint[PITCH] = PID_Caculate(&Velocitydy, -(CHANNEL[PITCH]-1500)*0.01, KF.velocity[1], dt_pid_vel, -50, 50, 0);
+		PID_angle_setpoint[ROLL] = PID_Caculate(&Velocitydx, (CHANNEL[ROLL]-1500)*0.01, KF.velocity[0], dt_pid_vel, -50, 50, 0);
 	}
 }
 void PID_YAW_PROCESS(void)
@@ -842,7 +856,7 @@ void PID_ANGLE_PROCESS(void)
 		current_time_pid_angle = TIM2->CNT;
 		dt_pid_angle = (current_time_pid_angle - previous_time_pid_angle)*0.000001;
 		f_pid_angle = 1 / dt_pid_angle;
-		if (Velocity.par.kp > 0)
+		if (Velocitydx.par.kp > 0 && Velocitydy.par.kp > 0 )
 		{
 			PID_rate_setpoint[PITCH] = PID_Caculate(&PitchAngle, PID_angle_setpoint[PITCH], imu.angle_deg[0], dt_pid_angle, -1000, 1000, 0);
 			PID_rate_setpoint[ROLL] = PID_Caculate(&RollAngle, PID_angle_setpoint[ROLL], -imu.angle_deg[1], dt_pid_angle, -1000, 1000, 0);
@@ -876,7 +890,7 @@ void PID_RATE_PROCESS(void)
 }
 void PID_HEIGHT_PROCESS(void)
 {
-	stick = CHANNEL[THRUST] - 1400;
+	stick = CHANNEL[THRUST] - 1500;
 	if ((TIM2->CNT - current_time_pid_height) >= dt_pid_height_desire)
 	{
 		previous_time_pid_height = current_time_pid_height;
@@ -888,13 +902,13 @@ void PID_HEIGHT_PROCESS(void)
 		if (abs(stick)>50)
 		{
 			height_setpoint += (float)stick*0.001*dt_pid_height;
-			height_setpoint = height_setpoint < 0.1 ? 0.1 : height_setpoint > 4.0 ? 4.0 : height_setpoint;
+			height_setpoint = height_setpoint < 0.15 ? 0.15 : height_setpoint > 4.0 ? 4.0 : height_setpoint;
 		}
 		else
 		{
 
 		}
-		pid_velH_setpoint = PID_Caculate(&Height, height_setpoint, KF.height, dt_pid_height, -2, 2, 0);
+		pid_velH_setpoint = PID_Caculate(&Height, height_setpoint, KF.position[2], dt_pid_height, -3, 3, 0);
 	}
 }
 void PID_VELH_PROCESS(void)
@@ -907,15 +921,15 @@ void PID_VELH_PROCESS(void)
         if (dt_pid_velH > 0.1f)  dt_pid_velH = 0.1f;
         if (dt_pid_velH < 0.001f) dt_pid_velH = 0.02f;
 		f_pid_velH = 1 / dt_pid_velH;
-		PID_Caculate(&VelH, pid_velH_setpoint, KF.velocity, dt_pid_velH, -300, 300, 0);
+		PID_Caculate(&VelH, pid_velH_setpoint, KF.velocity[2], dt_pid_velH, -300, 300, 0);
 	}
 }
 void MOTOR_CONTROLLER(void)
 {
 	if (ENABLE_FLY)
 	{
-		//thrust_value = 0.0000038*CHANNEL[THRUST]*CHANNEL[THRUST]*CHANNEL[THRUST]-0.0171*CHANNEL[THRUST]*CHANNEL[THRUST]+25.7*CHANNEL[THRUST]-12400;
-		thrust_value = 0.0000038*(CHANNEL[THRUST]-1000)*(CHANNEL[THRUST]-1400)*(CHANNEL[THRUST]-2000)+CHANNEL[THRUST]-1000;
+		thrust_value = 0.0000038*CHANNEL[THRUST]*CHANNEL[THRUST]*CHANNEL[THRUST]-0.0171*CHANNEL[THRUST]*CHANNEL[THRUST]+25.7*CHANNEL[THRUST]-12400;
+		//thrust_value = 0.0000038*(CHANNEL[THRUST]-1000)*(CHANNEL[THRUST]-1400)*(CHANNEL[THRUST]-2000)+CHANNEL[THRUST]-1000;
 		PWM1 = 1000 + thrust_value + VelH.pid_result_constrain - RollRate.pid_result_constrain + PitchRate.pid_result_constrain - YawRate.pid_result_constrain;
 		PWM2 = 1000 + thrust_value + VelH.pid_result_constrain + RollRate.pid_result_constrain + PitchRate.pid_result_constrain + YawRate.pid_result_constrain;
 		PWM3 = 1000 + thrust_value + VelH.pid_result_constrain + RollRate.pid_result_constrain - PitchRate.pid_result_constrain - YawRate.pid_result_constrain;
@@ -971,6 +985,21 @@ void ICM20948_s(void)
 		variance = (imu.acc_filter_linear[2] - mean) * (imu.acc_filter_linear[2] - mean);
 		sigma = sqrt(variance);
 	}
+}
+void MTF01P_s(void)
+{
+	for (int i = 0; i < 1000; i++)
+	{
+		MS5611_BAR();
+		sample[i] = payload.flow_vel_x;
+		mean += sample[i];
+	}
+	mean /= 1000;
+	for (int i = 0; i < 1000; i++)
+	{
+		variance = (payload.flow_vel_x - mean) * (payload.flow_vel_x - mean);
+	}
+	sigma = variance / 1000;
 }
 /* USER CODE END 4 */
 

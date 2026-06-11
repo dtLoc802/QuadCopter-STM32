@@ -9,6 +9,7 @@
 #include "arm_math.h"
 #include "ICM20948_I2C.h"
 #include "MS5611_SPI.h"
+#include "MTF01P.h"
 
 #ifndef INC_FILTERS_H_
 #define INC_FILTERS_H_
@@ -17,7 +18,12 @@
 #define DEG_TO_RAD 0.01745329252
 #define Pi 3.1415926535f
 
-
+enum EarthFrame
+{
+	x,
+	y,
+	z
+};
 
 typedef struct
 {
@@ -64,16 +70,17 @@ typedef struct
 }ComplementaryFilterH;
 typedef struct
 {
-	float height, velocity;
+	float position[3] , velocity[3];
 	float dt;
-	float P00, P01, P10, P11;
-	float K0, K1;
+	float P00[3], P01[3], P10[3], P11[3];
+	float K0pos, K1pos, K0vel, K1vel;
 	float Differ;
-	float R;
-	float Q_height, Q_velocity, Q_heightSe, Q_velocitySe;
-	float zn;
+	float Rbar, RoptP, RoptV;
+	float Q_position, Q_velocity, Q_positionSe, Q_velocitySe;
+	float zn[3];
 	float un;
-	float L;
+	float Lpos;
+	float Lvel;
 }KalmanFilter;
 void LowpassFilterInit(LowPassFilter* filter, float fcenter, float dt);
 float LowpassFilterProcess(LowPassFilter* filter, float input);
@@ -89,5 +96,5 @@ void MadgwickFilter_Update(MagdwitchFilter *filter, ICM20948_FILTER *IMU, AK0991
 //void BiquadFilterUpdate(BiquadFilter* filter, float fcenter, float dt, float Q);
 //float BiquadFilterReset(BiquadFilter* filter, float value);
 void ComplementaryHeightProcess(ComplementaryFilterH* filter, ICM20948_FILTER* imu, MS5611_SPI* bar, float dt);
-void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar, float dt, uint8_t baro_enable);
+void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar, MICOLINK_PAYLOAD_RANGE_SENSOR_t* opt, float dt, uint8_t baro_enable, uint8_t OpticalF_Enable);
 #endif /* INC_FILTERS_H_ */

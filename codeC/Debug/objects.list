@@ -3,6 +3,7 @@
 "./Core/Src/ICM20948_I2C.o"
 "./Core/Src/MS5611_SPI.o"
 "./Core/Src/MTF01P.o"
+"./Core/Src/NMEA.o"
 "./Core/Src/PIDControl.o"
 "./Core/Src/RC.o"
 "./Core/Src/Ringbuffer.o"

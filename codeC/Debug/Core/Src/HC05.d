@@ -60,7 +60,7 @@ Core/Src/HC05.o: ../Core/Src/HC05.c ../Core/Inc/HC05.h \
  ../Drivers/CMSIS/Include/dsp/support_functions.h \
  ../Drivers/CMSIS/Include/dsp/quaternion_math_functions.h \
  ../Core/Inc/ICM20948_I2C.h ../Core/Inc/MS5611_SPI.h ../Core/Inc/main.h \
- ../Core/Inc/usart.h ../Core/Inc/Ringbuffer.h
+ ../Core/Inc/MTF01P.h ../Core/Inc/usart.h ../Core/Inc/Ringbuffer.h
 ../Core/Inc/HC05.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -127,5 +127,6 @@ Core/Src/HC05.o: ../Core/Src/HC05.c ../Core/Inc/HC05.h \
 ../Core/Inc/ICM20948_I2C.h:
 ../Core/Inc/MS5611_SPI.h:
 ../Core/Inc/main.h:
+../Core/Inc/MTF01P.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/Ringbuffer.h:

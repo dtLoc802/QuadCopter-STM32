@@ -63,7 +63,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/CMSIS/Include/dsp/filtering_functions.h \
  ../Drivers/CMSIS/Include/dsp/support_functions.h \
  ../Drivers/CMSIS/Include/dsp/quaternion_math_functions.h \
- ../Core/Inc/ICM20948_I2C.h ../Core/Inc/MS5611_SPI.h \
+ ../Core/Inc/ICM20948_I2C.h ../Core/Inc/MS5611_SPI.h ../Core/Inc/MTF01P.h \
  ../Core/Inc/Ringbuffer.h ../Core/Inc/PIDControl.h ../Core/Inc/Filters.h \
  ../Core/Inc/MTF01P.h
 ../Core/Inc/main.h:
@@ -144,6 +144,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/CMSIS/Include/dsp/quaternion_math_functions.h:
 ../Core/Inc/ICM20948_I2C.h:
 ../Core/Inc/MS5611_SPI.h:
+../Core/Inc/MTF01P.h:
 ../Core/Inc/Ringbuffer.h:
 ../Core/Inc/PIDControl.h:
 ../Core/Inc/Filters.h:

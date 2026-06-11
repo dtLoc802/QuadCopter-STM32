@@ -220,7 +220,7 @@ void MadgwickFilter_Update(MagdwitchFilter *filter, ICM20948_FILTER *IMU, AK0991
 		{
 			IMU->angle_deg[i] = IMU->angle_rad[i] * RAD_TO_DEG;
 		}
-		//-Remove gravity
+		//- Caculate accelerometer XYZ  ( turn body frame to navigation frame)
 		IMU->acc_filter_linear[0] =	IMU->acc_filter[0]*(1.0f - 2.0f*q3*q3 - 2.0f*q4*q4) + IMU->acc_filter[1]*(2.0f*q2*q3 + 2.0f*q1*q4) + IMU->acc_filter[2]*(2.0f*q2*q4 - 2.0f*q1*q3);
 		IMU->acc_filter_linear[1] = IMU->acc_filter[0]*(2.0f*q2*q3 - 2.0f*q1*q4) + IMU->acc_filter[1]*(1.0f - 2.0f*q2*q2 - 2.0f*q4*q4) + IMU->acc_filter[2]*(2.0f*q1*q2 + 2.0f*q3*q4);
 		IMU->acc_filter_linear[2] = IMU->acc_filter[0]*(2.0f*q1*q3 + 2.0f*q2*q4) + IMU->acc_filter[1]*(2.0f*q3*q4 - 2.0f*q1*q2) + IMU->acc_filter[2]*(1.0f - 2.0f*q2*q2 - 2.0f*q3*q3) - g;
@@ -312,7 +312,7 @@ void MadgwickFilter(MagdwitchFilter *filter, ICM20948_FILTER *IMU, float dt)
 	{
 		IMU->angle_deg[i] = IMU->angle_rad[i] * RAD_TO_DEG;
 	}
-	//-Remove gravity
+	//- Calculate accelerometer XYZ (turn body frame to earth frame)
 	IMU->acc_filter_linear[0] =	IMU->acc_filter[0]*(1 - 2*q3*q3 - 2*q4*q4) + IMU->acc_filter[1]*(2*q2*q3 + 2*q1*q4) + IMU->acc_filter[2]*(2*q2*q4 - 2*q1*q3);
 	IMU->acc_filter_linear[1] = IMU->acc_filter[0]*(2*q2*q3 - 2*q1*q4) + IMU->acc_filter[1]*(1 - 2*q2*q2 - 2*q4*q4) + IMU->acc_filter[2]*(2*q1*q2 + 2*q3*q4);
 	IMU->acc_filter_linear[2] = IMU->acc_filter[0]*(2*q1*q3 + 2*q2*q4) + IMU->acc_filter[1]*(2*q3*q4 - 2*q1*q2) + IMU->acc_filter[2]*(1 - 2*q2*q2 - 2*q3*q3) - g;
@@ -351,64 +351,109 @@ void ComplementaryHeightProcess(ComplementaryFilterH* filter, ICM20948_FILTER* i
 	filter->v1 = filter->v;
 	filter->a1 = filter->a;
 }
-void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar, float dt, uint8_t baro_enable)
+void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar, MICOLINK_PAYLOAD_RANGE_SENSOR_t* opt, float dt, uint8_t baro_enable, uint8_t OpticalF_Enable)
 {
-	float h_predict;
-	float v_predict;
-	float P00_predict, P01_predict, P10_predict, P11_predict;
+	float p_predict[3];
+	float v_predict[3];
+	float P00_predict[3], P01_predict[3], P10_predict[3], P11_predict[3];
 	if (KFcount <= 4500)
 	{
-		K->Q_height = K->Q_heightSe * 100;
-		K->Q_velocity = K->Q_velocitySe * 100;
+		K->Q_position = K->Q_positionSe * 100.0f;
+		K->Q_velocity = K->Q_velocitySe * 100.0f;
 	}
 	else
 	{
-		K->Q_height = K->Q_heightSe;
+		K->Q_position = K->Q_positionSe;
 		K->Q_velocity = K->Q_velocitySe;
 	}
 
 	K->dt = dt;
-	K->zn = bar->Distance;
-	K->un = imu->acc_filter_linear[2];
     if (fabsf(K->un) < 0.05f)  K->un = 0.0f;
 	//__PREDICT__//
 
 	//- Extrapolate the state
-	h_predict = K->height + K->dt * K->velocity + 0.5f * K->dt * K->dt * K->un;
-	v_predict = K->velocity + K->dt * imu->acc_filter_linear[2];
+    for (int i = 0; i < 3; i++)
+    {
+    	p_predict[i] = K->position[i] + K->dt * K->velocity[i] + 0.5f * K->dt * K->dt * imu->acc_filter_linear[i];
+    	v_predict[i] = K->velocity[i] + K->dt * imu->acc_filter_linear[i];
 
-	//- Extrapolate uncertainly
-	P00_predict = K->P00 + K->dt * K->P10 + K->dt * (K->P01 + K->dt * K->P11) + K->Q_height;
-	P01_predict = K->P01 + K->dt * K->P11;
-	P10_predict = K->P10 + K->dt * K->P11;
-	P11_predict = K->P11 + K->Q_velocity;
+    	//- Extrapolate uncertainly
+    	P00_predict[i] = K->P00[i] + K->dt * K->P10[i] + K->dt * (K->P01[i] + K->dt * K->P11[i]) + K->Q_position;
+    	P01_predict[i] = K->P01[i] + K->dt * K->P11[i];
+    	P10_predict[i] = K->P10[i] + K->dt * K->P11[i];
+    	P11_predict[i] = K->P11[i] + K->Q_velocity;
+    }
 	//__UPDATE__//
-	if (baro_enable)
+	if (baro_enable && !OpticalF_Enable)
 	{
-		//- Compute the Kalman Gain
-		K->L = P00_predict + K->R;
-		K->K0 = P00_predict / K->L;
-		K->K1 = P10_predict / K->L;
+		//- Compute the Kalman Gain for z position
+		K->Lpos = P00_predict[z] + K->Rbar;
+		K->K0pos = P00_predict[z] / K->Lpos;
+		K->K1pos = P10_predict[z] / K->Lpos;
 
 		//- Update estimate with measurement
-		K->Differ = K->zn - h_predict;
-		K->height = h_predict + K->K0 * K->Differ;
-		K->velocity = v_predict + K->K1 * K->Differ;
+		K->zn[z] = bar->Distance;
+		K->Differ = K->zn[z] - p_predict[z];
+		K->position[z] = p_predict[z] + K->K0pos * K->Differ;
+		K->velocity[z] = v_predict[z] + K->K1pos * K->Differ;
 
 		//- Update the estimate uncertainly
-		K->P00 = (1 - K->K0) * P00_predict;
-		K->P01 = (1 - K->K0) * P01_predict;
-		K->P10 = - K->K1 * P00_predict + P10_predict;
-		K->P11 = - K->K1 * P01_predict + P11_predict;
+		K->P00[z] = (1.0f - K->K0pos) * P00_predict[z];
+		K->P01[z] = (1.0f - K->K0pos) * P01_predict[z];
+		K->P10[z] = - K->K1pos * P00_predict[z] + P10_predict[z];
+		K->P11[z] = - K->K1pos * P01_predict[z] + P11_predict[z];
+	}
+	else if (OpticalF_Enable)
+	{
+
+		for (int i = 0; i < 2; i++)
+		{
+			//- Compute the Kalman Gain for xy
+			K->Lvel = P11_predict[i] + K->RoptV;
+			K->K0vel = P01_predict[i] / K->Lvel;
+			K->K1vel = P11_predict[i] / K->Lvel;
+			if (i==0) K->zn[i] =  opt->flow_vel_x*p_predict[z]*0.01f;
+			else K->zn[i] = - opt->flow_vel_y*p_predict[z]*0.01f;
+			K->Differ = K->zn[i] - v_predict[i];
+			K->position[i] = p_predict[i] + K->K0vel * K->Differ;
+			K->velocity[i] = v_predict[i] + K->K1vel * K->Differ;
+
+		    K->P00[i] = P00_predict[i] - K->K0vel * P10_predict[i];
+		    K->P01[i] = P01_predict[i] - K->K0vel * P11_predict[i];
+		    K->P10[i] = P10_predict[i] - K->K1vel * P10_predict[i];
+		    K->P11[i] = P11_predict[i] - K->K1vel * P11_predict[i];
+		}
+
+		//- Compute the Kalman Gain for z
+		K->Lpos = P00_predict[z] + K->RoptP;
+		K->K0pos = P00_predict[z] / K->Lpos;
+		K->K1pos = P10_predict[z] / K->Lpos;
+
+		K->zn[z] = opt->distance*0.001f;
+		K->Differ = K->zn[z] - p_predict[z];
+		K->position[2] = p_predict[z] + K->K0pos * K->Differ;
+		K->velocity[2] = v_predict[z] + K->K1pos * K->Differ;
+
+		K->P00[z] = P00_predict[z] - K->K0pos * P00_predict[z];
+		K->P01[z] = P01_predict[z] - K->K0pos * P01_predict[z];
+		K->P10[z] = - K->K1pos * P00_predict[z] + P10_predict[z];
+		K->P11[z] = - K->K1pos * P01_predict[z] + P11_predict[z];
+
+
 	}
 	else
 	{
-		K->height = h_predict;
-		K->velocity = v_predict;
-		K->P00 = P00_predict;
-		K->P01 = P01_predict;
-		K->P10 = P10_predict;
-		K->P11 = P11_predict;
+		for (int i = 0; i < 3; i++)
+		{
+			K->position[i] = p_predict[i];
+			K->velocity[i] = v_predict[i];
+
+			K->P00[i] = P00_predict[i];
+			K->P01[i] = P01_predict[i];
+			K->P10[i] = P10_predict[i];
+			K->P11[i] = P11_predict[i];
+		}
+
 	}
 	KFcount++;
 }

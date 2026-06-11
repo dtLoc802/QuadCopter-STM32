@@ -9,4 +9,4 @@
 ../Core/Src/Filters.c:119:6:MadgwickFilter_Update	10
 ../Core/Src/Filters.c:234:6:MadgwickFilter	7
 ../Core/Src/Filters.c:326:6:ComplementaryHeightProcess	11
-../Core/Src/Filters.c:354:6:KalmanFilterProcess	4
+../Core/Src/Filters.c:354:6:KalmanFilterProcess	10
