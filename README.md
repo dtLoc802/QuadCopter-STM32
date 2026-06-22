@@ -12,9 +12,9 @@ Controller Block Diagram
 <p align="center">
  <img src="Images/BlockDiagram.svg" width=100% alt="Diagram">
 
- ## Result
+## Result
 
-#### Video
+### Video
 
  Flight result video: https://youtu.be/znj9OqjzdcU
 <a href="https://youtu.be/znj9OqjzdcU">
@@ -23,5 +23,5 @@ Controller Block Diagram
 
  Hover video: https://youtube.com/shorts/ZwW649EOINM?feature=share
  <a href="https://youtube.com/shorts/ZwW649EOINM?feature=share">
- 
+
  <img width=400 src="Images/PositionHold.png"></a>
