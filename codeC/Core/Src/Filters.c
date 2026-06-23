@@ -412,16 +412,18 @@ void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar,
 			K->Lvel = P11_predict[i] + K->RoptV;
 			K->K0vel = P01_predict[i] / K->Lvel;
 			K->K1vel = P11_predict[i] / K->Lvel;
-			if (i==0) K->zn[i] =  opt->flow_vel_x*p_predict[z]*0.01f;
-			else K->zn[i] = - opt->flow_vel_y*p_predict[z]*0.01f;
+
+			if (i==0) K->zn[i] =  opt->flow_vel_x* K->position[z]*0.01f;
+			else K->zn[i] = - opt->flow_vel_y*K->position[z]*0.01f;
+
 			K->Differ = K->zn[i] - v_predict[i];
 			K->position[i] = p_predict[i] + K->K0vel * K->Differ;
 			K->velocity[i] = v_predict[i] + K->K1vel * K->Differ;
 
-		    K->P00[i] = P00_predict[i] - K->K0vel * P10_predict[i];
+		    K->P00[i] = P00_predict[i] - K->K0vel * P01_predict[i];
 		    K->P01[i] = P01_predict[i] - K->K0vel * P11_predict[i];
 		    K->P10[i] = P10_predict[i] - K->K1vel * P10_predict[i];
-		    K->P11[i] = P11_predict[i] - K->K1vel * P11_predict[i];
+		    K->P11[i] = P11_predict[i] - K->K1vel * P01_predict[i];
 		}
 
 		//- Compute the Kalman Gain for z
@@ -436,8 +438,8 @@ void KalmanFilterProcess(KalmanFilter* K, ICM20948_FILTER* imu, MS5611_SPI* bar,
 
 		K->P00[z] = P00_predict[z] - K->K0pos * P00_predict[z];
 		K->P01[z] = P01_predict[z] - K->K0pos * P01_predict[z];
-		K->P10[z] = - K->K1pos * P00_predict[z] + P10_predict[z];
-		K->P11[z] = - K->K1pos * P01_predict[z] + P11_predict[z];
+		K->P10[z] = P10_predict[z] - K->K1pos * P00_predict[z];
+		K->P11[z] = P11_predict[z] - K->K1pos * P01_predict[z];
 
 
 	}

@@ -206,12 +206,12 @@ float height_setpoint;
 float pid_velH_setpoint;
 PIDsingle PitchRate = {
 		.par.kp = 1.1,
-		.par.ki = 1.5,
+		.par.ki = 1.0,
 		.par.kd = 0.0035,
 };
 PIDsingle RollRate = {
 		.par.kp = 1.1,
-		.par.ki = 1.5,
+		.par.ki = 1.0,
 		.par.kd = 0.0035,
 };
 PIDsingle YawRate = {
@@ -246,14 +246,14 @@ PIDsingle VelH = {
 };
 PIDsingle Position;
 PIDsingle Velocitydx = {
-		.par.kp = 0,
-		.par.ki = 0,
-		.par.kd = 2.0,
+		.par.kp = 8.0,
+		.par.ki = 0.75,
+		.par.kd = 1.0,
 };
 PIDsingle Velocitydy = {
-		.par.kp = 0,
-		.par.ki = 0,
-		.par.kd = 2.0,
+		.par.kp = 8.0,
+		.par.ki = 0.75,
+		.par.kd = 1.0,
 };
 uint8_t missout = 0;
 //-
