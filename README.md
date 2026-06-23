@@ -6,12 +6,6 @@
 * Maintains a stable hover position in outdoor environment.
 * Position control (planned).
 
-## Theory
-
-Controller Block Diagram
-<p align="center">
- <img src="Images/BlockDiagram.svg" width=100% alt="Diagram">
-
 ## Result
 
 ### Video
@@ -25,3 +19,13 @@ Controller Block Diagram
  <a href="https://youtube.com/shorts/ZwW649EOINM?feature=share">
 
  <img width=400 src="Images/PositionHold.png"></a>
+
+ ## Controller Block Diagram
+
+<p align="center">
+ <img src="Images/BlockDiagram.svg" width=100% alt="Diagram">
+
+## Connection Diagram
+
+<p align="center">
+ <img src="Images/Connection.svg" width=100% alt="Schematic"> 
